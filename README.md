@@ -1,2 +1,2 @@
 # robot-hardware
-All the code regarding the hardware of the robot
+All the code regarding the hardware of the robot.
