@@ -31,11 +31,11 @@ def right(a,b,c,d):
 
 def main():
     s =  socket.socket()
-    motor1pin1 =  Pin(A,Pin.OUT)
-    motor1pin2 = Pin(B, Pin.OUT)
-    motor2pin1 = Pin(C, Pin.OUT)
-    motor2pin2 = Pin(D, Pin.OUT)
-    servopin = Pin(E, Pin.OUT)
+    motor1pin1 =  Pin(A,Pin.OUT) # subject to change depending on the GPIO pin number
+    motor1pin2 = Pin(B, Pin.OUT) # subject to change depending on the GPIO pin number
+    motor2pin1 = Pin(C, Pin.OUT) # subject to change depending on the GPIO pin number
+    motor2pin2 = Pin(D, Pin.OUT) # subject to change depending on the GPIO pin number
+    servopin = Pin(E, Pin.OUT) # subject to change depending on the GPIO pin number
     servo = PWM(servopin,freq = 50)
     s.connect("IP")
     while True:
