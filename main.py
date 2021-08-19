@@ -114,18 +114,18 @@ def stop(m1p1,m1p2,m2p1,m2p2):
     m2p2.off()
 
 def main():
-    s =  socket.socket()
+    s =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     motor1pin1_raw =  Pin(A,Pin.OUT)
-    motor1pin1 = (motor1pin1_raw,freq = 30)
+    motor1pin1 = (motor1pin1_raw)
     motor1pin2_raw = Pin(B, Pin.OUT)
-    motor1pin2 = (motor1pin2_raw, freq = 30)
+    motor1pin2 = (motor1pin2_raw)
     motor2pin1_raw = Pin(C, Pin.OUT)
-    motor2pin1 = (motor2pin1_raw, freq = 30)
+    motor2pin1 = (motor2pin1_raw)
     motor2pin2_raw = Pin(D, Pin.OUT)
-    motor2pin2 = (motor2pin2_raw, freq = 30)
+    motor2pin2 = (motor2pin2_raw)
     servo_raw = Pin(E, Pin.OUT)
-    servo = PWM(servo_raw,freq = 30)
-    s.connect("IP")
+    servo = PWM(servo_raw,freq = 50)
+    s.connect(("IP",PORT)) # port in int
     while True:
         data = s.recv(1024) # subject to change depending on the amount of data we get from socket
         data = data.decode("ascii") # converting to ascii
