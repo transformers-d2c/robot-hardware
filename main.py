@@ -129,6 +129,8 @@ def main():
     while True:
         data = s.recv(1024) # subject to change depending on the amount of data we get from socket
         data = data.decode("ascii") # converting to ascii
+        data = data.strip("\n")
+        data = [float(i) for i in data.split(",")]
         current_coords = data[:3]
         dest_coords = data[3:6]
         direction = parse_direction(data)
