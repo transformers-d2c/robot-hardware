@@ -115,6 +115,7 @@ def stop(m1p1,m1p2,m2p1,m2p2):
 
 def main():
     s =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # A,B,C,D,E to be replaced with GPIO pin number (int)
     motor1pin1_raw =  Pin(A,Pin.OUT)
     motor1pin1 = (motor1pin1_raw)
     motor1pin2_raw = Pin(B, Pin.OUT)
