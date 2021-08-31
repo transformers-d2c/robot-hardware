@@ -1,5 +1,5 @@
 """hopefully parts of code will work, mere pe nodeMCU nahi so i didnt test D:"""
-
+import network
 import socket
 from machine import Pin,PWM
 
@@ -8,6 +8,17 @@ errorsum_linear = 0
 errordiff_linear = 0
 errorsum_rotate = 0
 errordiff_rotate = 0
+
+# to be put in something similar to void setup no idea where it belongs to 
+def WiFi_Connect():
+    sta_if = network.WLAN(network.STA_IF)
+    sta_if.active(True)
+    sta_if.connect("SSID","Password")
+    if sta_if.isconnected():
+        print("not Connected to Wifi")
+    else:
+        print("Connection successful")
+
 
 def PIDcontrollinear(current_coord,dest_coord,motorpin):
     """This function takes coordinates x,y and a motor pin and then applies PID control algo to it"""
@@ -23,7 +34,7 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     else:
         error = error_x
     # probably the remaning code shouldnt matter on the direction, since PID in itself is applied on 1 dimension
-    #but the errorsum and errordiff might need seperate variables for x and y coordinates.
+    # but the errorsum and errordiff might need seperate variables for x and y coordinates.
     global errorsum_linear
     global errordiff_linear
     errorsum_linear += error # build errorsum
@@ -31,12 +42,13 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     Kp = 50 # subject to change in the tuning phase
     Ki = 0.2 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
-    pwm = Kp*error + Ki*errorsum + Kd*errordiff # calcs pwn output
+    pwm = Kp*error + Ki*errorsum_linear + Kd*errordiff_linear # calcs pwn output
     motorpin.duty(pwm)
+
 
 def PIDcontrolrotate(current_coord,dest_coord,motorpin):
     """This function takes coordinates theta and a motor pin and then applies PID control algo to it"""
-    error = dest_coord[2] - current_coord[2]
+    error = dest_coord - current_coord
     global errorsum_rotate
     global errordiff_rotate
     errorsum_rotate += error # build errorsum
@@ -44,7 +56,7 @@ def PIDcontrolrotate(current_coord,dest_coord,motorpin):
     Kp = 50 # subject to change in the tuning phase
     Ki = 0.2 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
-    pwm = Kp*error + Ki*errorsum + Kd*errordiff # calcs pwn output
+    pwm = Kp*error + Ki*errorsum_rotate + Kd*errordiff_rotate # calcs pwn output
     motorpin.duty(pwm)
 
 def parse_direction(data):
@@ -103,10 +115,12 @@ def parse_direction(data):
             elif data[5] > data[2]:
                 return "Clock"
 
+
 def flip(sm):
     """This function will be used to flip the load off the robot"""
     sm.duty(100) # subject to change depending on the angle
     sm.duty(40) # subject to change depending on the angle
+
 
 def forward(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     """This function will take in motor pins as well as coordinates of current as will as
@@ -116,6 +130,7 @@ def forward(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     PIDcontrollinear(current_coord,dest_coord,m2p1)
     m2p2.duty(0)
 
+
 def reverse(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     """This function will take in motor pins as well as coordinates of current as will as
         destination and apply PID to make it move rv"""
@@ -124,13 +139,15 @@ def reverse(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     m2p1.duty(0)
     PIDcontrollinear(current_coord,dest_coord,m2p2)
 
+
 def antiClockwise(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     """This function will take in motor pins as well as coordinates of current as will as
         destination and apply PID to make it move anti-clockwise"""
     m1p1.duty(0)
-    PIDcontrolrotate(current_coord,dest_coord,m1p2)
+    PIDcontrolrotate(current_coord, dest_coord, m1p2)
     PIDcontrolrotate(current_coord, dest_coord, m2p1)
     m2p2.duty(0)
+
 
 def Clockwise(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     """This function will take in motor pins as well as coordinates of current as will as
@@ -138,7 +155,8 @@ def Clockwise(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
     PIDcontrolrotate(current_coord,dest_coord,m1p1)
     m1p2.duty(0)
     m2p1.duty(0)
-    PIDcontrollinear(current_coord,dest_coord,m2p2)
+    PIDcontrolrotate(current_coord,dest_coord,m2p2)
+
 
 def stop(m1p1,m1p2,m2p1,m2p2):
     """This function will take in motor pins and apply PID to make it stop"""
@@ -147,10 +165,11 @@ def stop(m1p1,m1p2,m2p1,m2p2):
     m2p1.duty(0)
     m2p2.duty(0)
 
+
 def main():
-    s =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # A,B,C,D,E to be replaced with GPIO pin number (int)
-    motor1pin1_raw =  Pin(A,Pin.OUT)
+    motor1pin1_raw = Pin(A,Pin.OUT)
     motor1pin1 = PWM(motor1pin1_raw)
     motor1pin2_raw = Pin(B, Pin.OUT)
     motor1pin2 = PWM(motor1pin2_raw)
@@ -170,25 +189,19 @@ def main():
         dest_coords = data[3:6]
         direction = parse_direction(data)
         flipbit = data[6]
-        """if direction == "antiClock": # subject to change depending on the input we get from the socket
-            left(motor1pin1,motor1pin2,motor2pin1,motor2pin2,current_coords,dest_coords)
-        if direction == "Clock": # subject to change depending on the input we get from the socket
-            right(motor1pin1, motor1pin2, motor2pin1, motor2pin2,current_coords,dest_coords)
-        if direction == "stop": # subject to change depending on the input we get from the socket
-            stop(motor1pin1, motor1pin2, motor2pin1, motor2pin2)
-        if direction == "FLIP":
-            flip(servo)""" # very naive approach
         if direction == "fw":
-            forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[1], dest_coords[1])
+            forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[:2], dest_coords[:2])
         if direction == "rv":
-            reverse(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[1], dest_coords[1])
+            reverse(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[:2], dest_coords[:2])
         if direction == "stop":
             stop(motor1pin1, motor1pin2, motor2pin1, motor2pin2)
-        else:
-            # left right nahi smjh aa raha for now :)
-            pass
+        if direction == "antiClock":
+            antiClockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,current_coords[2],dest_coords[2])
+        if direction == "Clock":
+            Clockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,current_coords[2],dest_coords[2])
         if flipbit == "1":
             flip(servo)
 
 if __name__ == "__main__":
+    WiFi_Connect()
     main()
