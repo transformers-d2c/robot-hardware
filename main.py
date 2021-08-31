@@ -191,14 +191,22 @@ def main():
     motor2pin2 = PWM(motor2pin2_raw)
     servo_raw = Pin(int(pins["servo"]), Pin.OUT)
     servo = PWM(servo_raw,freq = 50) # port in int
+    data = ''
+    pose = dict()
     while True:
-        data = s.recv(1024) # subject to change depending on the amount of data we get from socket
-        data = data.decode("ascii") # converting to ascii
-        data = json.loads(data)
-        current_coords = data["pose"]
-        dest_coords = data["target"]
-        direction = parse_direction(data)
-        flipbit = data["flip"]
+        buf = s.recv(64)
+        data = data + buf.decode('ascii')
+        delimiter_index = data.find('|')
+        if delimiter_index == -1:
+            continue
+        else:
+            pose = json.loads(data[0:delimiter_index])
+            data = data[delimiter_index+1:]
+        print(str(pose))
+        current_coords = pose["pose"]
+        dest_coords = pose["target"]
+        direction = parse_direction(pose)
+        flipbit = pose["flip"]
         if direction == "fw":
             forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[:2], dest_coords[:2])
         if direction == "rv":
