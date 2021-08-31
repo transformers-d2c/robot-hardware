@@ -19,6 +19,7 @@ def set_pins(lp,ln,rp,rn,s):
             },
             'servo':s
         }
+        json.dump(data,out)
 
 
 def set_pins_input():
