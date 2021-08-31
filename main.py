@@ -13,11 +13,13 @@ errordiff_rotate = 0
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    sta_if.connect("SSID","Password")
-    if sta_if.isconnected():
-        print("not Connected to Wifi")
-    else:
-        print("Connection successful")
+    ssid = input('Enter SSID:')
+    pwd = input('Enter password:')
+    sta_if.connect(ssid,pwd)
+    print('Connecting...')
+    while not sta_if.isconnected():
+        pass
+    print('Connected: ',sta_if.ifconfig())
 
 
 def PIDcontrollinear(current_coord,dest_coord,motorpin):
@@ -168,6 +170,12 @@ def stop(m1p1,m1p2,m2p1,m2p2):
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    IP = input('Enter server IP:')
+    port = int(input('Enter serve port'))
+    s.connect((IP,port))
+    print('Connected to server')
+    robot_id = int(input('Robot id?'))
+    s.sendall(str(robot_id).encode('ascii'))
     # A,B,C,D,E to be replaced with GPIO pin number (int)
     motor1pin1_raw = Pin(A,Pin.OUT)
     motor1pin1 = PWM(motor1pin1_raw)
@@ -178,8 +186,7 @@ def main():
     motor2pin2_raw = Pin(D, Pin.OUT)
     motor2pin2 = PWM(motor2pin2_raw)
     servo_raw = Pin(E, Pin.OUT)
-    servo = PWM(servo_raw,freq = 50)
-    s.connect(("IP",PORT)) # port in int
+    servo = PWM(servo_raw,freq = 50) # port in int
     while True:
         data = s.recv(1024) # subject to change depending on the amount of data we get from socket
         data = data.decode("ascii") # converting to ascii
@@ -204,4 +211,4 @@ def main():
 
 if __name__ == "__main__":
     WiFi_Connect()
-    main()
+    # main()
