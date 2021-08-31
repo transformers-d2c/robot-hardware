@@ -2,6 +2,7 @@
 import network
 import socket
 from machine import Pin,PWM
+import json
 
 # global variables
 errorsum_linear = 0
@@ -9,7 +10,7 @@ errordiff_linear = 0
 errorsum_rotate = 0
 errordiff_rotate = 0
 
-# to be put in something similar to void setup no idea where it belongs to 
+# to be put in something similar to void setup no idea where it belongs to
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
@@ -24,10 +25,10 @@ def WiFi_Connect():
 
 def PIDcontrollinear(current_coord,dest_coord,motorpin):
     """This function takes coordinates x,y and a motor pin and then applies PID control algo to it"""
-    x_current_coord = current_coord[0] # takes current x coord
-    y_current_coord = current_coord[1] # takes current y coord
-    x_dest_coord = dest_coord[0] # takes dest x coord
-    y_dest_coord = dest_coord[1] # takes dest y coord
+    x_current_coord = float(current_coord["x"]) # takes current x coord
+    y_current_coord = float(current_coord["y"]) # takes current y coord
+    x_dest_coord = float(dest_coord["x"]) # takes dest x coord
+    y_dest_coord = float(dest_coord["y"]) # takes dest y coord
     error_x = x_dest_coord - x_current_coord # calculates if error in x direction
     error_y = y_dest_coord - y_current_coord # calculates if error in y direction
     # if there is no error in x direction then the final error is error_y, else its error_x
@@ -48,8 +49,10 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     motorpin.duty(pwm)
 
 
-def PIDcontrolrotate(current_coord,dest_coord,motorpin):
+def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     """This function takes coordinates theta and a motor pin and then applies PID control algo to it"""
+    current_coord = float(current_coord_dict["theta"])
+    dest_coord = float(dest_coord_dict["theta"])
     error = dest_coord - current_coord
     global errorsum_rotate
     global errordiff_rotate
@@ -63,39 +66,39 @@ def PIDcontrolrotate(current_coord,dest_coord,motorpin):
 
 def parse_direction(data):
     """This function gets data from socket and then returns if one should move fw, rv, clockwise or anti clockwise"""
-    anglediff = data[5] - data[2] # calculate difference of angle of dst and src
+    anglediff = int(data["target"]["theta"]) - int(data["pos"]["theta"]) # calculate difference of angle of dst and src
     if anglediff == 0:
         # only for forward and reverse
-        if data[2] == 0:
+        if data["pos"]["theta"] == "0":
             # if pointing towards +ve x axis
-            xdiff = data[3] - data[0] # dst - src (required difference is +ve)
+            xdiff = int(data["target"]["x"]) - int(data["pos"]["x"]) # dst - src (required difference is +ve)
             if xdiff > 0:
                 return "fw"
             elif xdiff < 0:
                 return "rv"
             else:
                 return "stop"
-        elif data[2] == 180 or data[2] == -180:
+        elif data["pos"]["theta"] == "180" or data["pos"]["theta"] == "-180":
             # if pointing towards -ve x axis
-            xdiff = data[3] - data[0] # dst - src (required difference is -ve)
+            xdiff = int(data["target"]["x"]) - int(data["pos"]["x"]) # dst - src (required difference is -ve)
             if xdiff < 0:
                 return "fw"
             elif xdiff > 0:
                 return "rv"
             else:
                 return "stop"
-        elif data[2] == 90:
+        elif data["pos"]["theta"] == "90":
             # if pointing towards +ve y axis
-            ydiff = data[4] - data[1] # dst - src (required difference is +ve)
+            ydiff = int(data["target"]["y"]) - int(data["pos"]["y"]) # dst - src (required difference is +ve)
             if ydiff > 0:
                 return "fw"
             elif ydiff < 0:
                 return "rv"
             else:
                 return "stop"
-        elif  data[2] == -90:
+        elif data["pos"]["theta"] == "-90":
             # if pointing towards -ve y axis
-            ydiff = data[4] - data[1] # dst - src (required difference is -ve)
+            ydiff = int(data["target"]["y"]) - int(data["pos"]["y"]) # dst - src (required difference is -ve)
             if ydiff < 0:
                 return "fw"
             elif ydiff > 0:
@@ -106,15 +109,15 @@ def parse_direction(data):
         # for left and right (might not work, i dont have much confidence in this piece of code, cuz no testing D:)
         if anglediff < 180:
             # if angle difference < 180 then if dest angle > current the it will turn left and dest angle < current the it will turn right
-            if data[5] > data[2]:
+            if data["target"]["theta"] > data["pos"]["theta"]:
                 return "antiClock"
-            elif data[5] < data[2]:
+            elif data["target"]["theta"] < data["pos"]["theta"]:
                 return "Clock"
         elif anglediff > 180:
             # if angle difference > 180 then if dest angle < current the it will turn left and dest angle > current the it will turn right
-            if data[5] < data[2]:
+            if data["target"]["theta"] < data["pos"]["theta"]:
                 return "antiClock"
-            elif data[5] > data[2]:
+            elif data["target"]["theta"] > data["pos"]["theta"]:
                 return "Clock"
 
 
@@ -176,26 +179,26 @@ def main():
     print('Connected to server')
     robot_id = int(input('Robot id?'))
     s.sendall(str(robot_id).encode('ascii'))
-    # A,B,C,D,E to be replaced with GPIO pin number (int)
-    motor1pin1_raw = Pin(A,Pin.OUT)
+    with open("pinConfig.json","r") as f:
+        pins = json.loads(f.read())
+    motor1pin1_raw = Pin(int(pins["leftwheel"]["pos"]),Pin.OUT)
     motor1pin1 = PWM(motor1pin1_raw)
-    motor1pin2_raw = Pin(B, Pin.OUT)
+    motor1pin2_raw = Pin(int(pins["leftwheel"]["neg"]), Pin.OUT)
     motor1pin2 = PWM(motor1pin2_raw)
-    motor2pin1_raw = Pin(C, Pin.OUT)
+    motor2pin1_raw = Pin(int(pins["rightwheel"]["pos"]), Pin.OUT)
     motor2pin1 = PWM(motor2pin1_raw)
-    motor2pin2_raw = Pin(D, Pin.OUT)
+    motor2pin2_raw = Pin(int(pins["rightwheel"]["neg"]), Pin.OUT)
     motor2pin2 = PWM(motor2pin2_raw)
-    servo_raw = Pin(E, Pin.OUT)
+    servo_raw = Pin(int(pins["servo"]), Pin.OUT)
     servo = PWM(servo_raw,freq = 50) # port in int
     while True:
         data = s.recv(1024) # subject to change depending on the amount of data we get from socket
         data = data.decode("ascii") # converting to ascii
-        data = data.strip("\n")
-        data = [float(i) for i in data.split(",")]
-        current_coords = data[:3]
-        dest_coords = data[3:6]
+        data = json.loads(data)
+        current_coords = data["pose"]
+        dest_coords = data["target"]
         direction = parse_direction(data)
-        flipbit = data[6]
+        flipbit = data["flip"]
         if direction == "fw":
             forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[:2], dest_coords[:2])
         if direction == "rv":
@@ -211,4 +214,4 @@ def main():
 
 if __name__ == "__main__":
     WiFi_Connect()
-    # main()
+    main()
