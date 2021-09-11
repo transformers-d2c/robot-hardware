@@ -25,10 +25,10 @@ def WiFi_Connect():
 
 def PIDcontrollinear(current_coord,dest_coord,motorpin):
     """This function takes coordinates x,y and a motor pin and then applies PID control algo to it"""
-    x_current_coord = float(current_coord["x"]) # takes current x coord
-    y_current_coord = float(current_coord["y"]) # takes current y coord
-    x_dest_coord = float(dest_coord["x"]) # takes dest x coord
-    y_dest_coord = float(dest_coord["y"]) # takes dest y coord
+    x_current_coord = float(current_coord[0]) # takes current x coord
+    y_current_coord = float(current_coord[1]) # takes current y coord
+    x_dest_coord = float(dest_coord[0]) # takes dest x coord
+    y_dest_coord = float(dest_coord[1]) # takes dest y coord
     error_x = x_dest_coord - x_current_coord # calculates if error in x direction
     error_y = y_dest_coord - y_current_coord # calculates if error in y direction
     # if there is no error in x direction then the final error is error_y, else its error_x
@@ -46,13 +46,13 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     Ki = 0.2 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
     pwm = Kp*error + Ki*errorsum_linear + Kd*errordiff_linear # calcs pwn output
-    motorpin.duty(pwm)
+    motorpin.duty(int(pwm))
 
 
 def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     """This function takes coordinates theta and a motor pin and then applies PID control algo to it"""
-    current_coord = float(current_coord_dict["theta"])
-    dest_coord = float(dest_coord_dict["theta"])
+    current_coord = float(current_coord_dict)
+    dest_coord = float(dest_coord_dict)
     error = dest_coord - current_coord
     global errorsum_rotate
     global errordiff_rotate
@@ -62,62 +62,62 @@ def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     Ki = 0.2 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
     pwm = Kp*error + Ki*errorsum_rotate + Kd*errordiff_rotate # calcs pwn output
-    motorpin.duty(pwm)
+    motorpin.duty(int(pwm))
 
 def parse_direction(data):
     """This function gets data from socket and then returns if one should move fw, rv, clockwise or anti clockwise"""
-    anglediff = int(data["target"]["theta"]) - int(data["pos"]["theta"]) # calculate difference of angle of dst and src
+    anglediff = float(data["target"]["theta"]) - float(data["pose"]["theta"]) # calculate difference of angle of dst and src
     if anglediff == 0:
         # only for forward and reverse
-        if data["pos"]["theta"] == "0":
+        if data["pose"]["theta"] == 0.0:
             # if pointing towards +ve x axis
-            xdiff = int(data["target"]["x"]) - int(data["pos"]["x"]) # dst - src (required difference is +ve)
-            if xdiff > 0:
+            xdiff = float(data["target"]["x"]) - float(data["pose"]["x"]) # dst - src (required difference is +ve)
+            if xdiff > 0.0:
                 return "fw"
-            elif xdiff < 0:
+            elif xdiff < 0.0:
                 return "rv"
             else:
                 return "stop"
-        elif data["pos"]["theta"] == "180" or data["pos"]["theta"] == "-180":
+        elif data["pose"]["theta"] == 180.0 or data["pose"]["theta"] == -180.0:
             # if pointing towards -ve x axis
-            xdiff = int(data["target"]["x"]) - int(data["pos"]["x"]) # dst - src (required difference is -ve)
+            xdiff = float(data["target"]["x"]) - float(data["pose"]["x"]) # dst - src (required difference is -ve)
             if xdiff < 0:
                 return "fw"
             elif xdiff > 0:
                 return "rv"
             else:
                 return "stop"
-        elif data["pos"]["theta"] == "90":
+        elif data["pose"]["theta"] == 90.0:
             # if pointing towards +ve y axis
-            ydiff = int(data["target"]["y"]) - int(data["pos"]["y"]) # dst - src (required difference is +ve)
-            if ydiff > 0:
+            ydiff = float(data["target"]["y"]) - float(data["pose"]["y"]) # dst - src (required difference is +ve)
+            if ydiff > 0.0:
                 return "fw"
-            elif ydiff < 0:
+            elif ydiff < 0.0:
                 return "rv"
             else:
                 return "stop"
-        elif data["pos"]["theta"] == "-90":
+        elif data["pose"]["theta"] == -90.0:
             # if pointing towards -ve y axis
-            ydiff = int(data["target"]["y"]) - int(data["pos"]["y"]) # dst - src (required difference is -ve)
-            if ydiff < 0:
+            ydiff = float(data["target"]["y"]) - float(data["pose"]["y"]) # dst - src (required difference is -ve)
+            if ydiff < 0.0:
                 return "fw"
-            elif ydiff > 0:
+            elif ydiff > 0.0:
                 return "rv"
             else:
                 return "stop"
     else:
         # for left and right (might not work, i dont have much confidence in this piece of code, cuz no testing D:)
-        if anglediff < 180:
+        if anglediff < 180.0:
             # if angle difference < 180 then if dest angle > current the it will turn left and dest angle < current the it will turn right
-            if data["target"]["theta"] > data["pos"]["theta"]:
+            if data["target"]["theta"] > data["pose"]["theta"]:
                 return "antiClock"
-            elif data["target"]["theta"] < data["pos"]["theta"]:
+            elif data["target"]["theta"] < data["pose"]["theta"]:
                 return "Clock"
-        elif anglediff > 180:
+        elif anglediff > 180.0:
             # if angle difference > 180 then if dest angle < current the it will turn left and dest angle > current the it will turn right
-            if data["target"]["theta"] < data["pos"]["theta"]:
+            if data["target"]["theta"] < data["pose"]["theta"]:
                 return "antiClock"
-            elif data["target"]["theta"] > data["pos"]["theta"]:
+            elif data["target"]["theta"] > data["pose"]["theta"]:
                 return "Clock"
 
 
@@ -193,6 +193,7 @@ def main():
     servo = PWM(servo_raw,freq = 50) # port in int
     data = ''
     pose = dict()
+    #i = 1
     while True:
         buf = s.recv(64)
         data = data + buf.decode('ascii')
@@ -203,20 +204,24 @@ def main():
             pose = json.loads(data[0:delimiter_index])
             data = data[delimiter_index+1:]
         print(str(pose))
+        #i+=1
+        #if(i%100==0):
+            #print(str(pose))
+            #i=1
         current_coords = pose["pose"]
         dest_coords = pose["target"]
         direction = parse_direction(pose)
         flipbit = pose["flip"]
         if direction == "fw":
-            forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[:2], dest_coords[:2])
+            forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, [float(current_coords["x"]),float(current_coords["y"])], [float(dest_coords["x"]),float(dest_coords["y"])])
         if direction == "rv":
-            reverse(motor1pin1, motor1pin2, motor2pin1, motor2pin2, current_coords[:2], dest_coords[:2])
+            reverse(motor1pin1, motor1pin2, motor2pin1, motor2pin2, [float(current_coords["x"]),float(current_coords["y"])], [float(dest_coords["x"]),float(dest_coords["y"])])
         if direction == "stop":
             stop(motor1pin1, motor1pin2, motor2pin1, motor2pin2)
         if direction == "antiClock":
-            antiClockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,current_coords[2],dest_coords[2])
+            antiClockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,float(current_coords["theta"]),float(dest_coords["theta"]))
         if direction == "Clock":
-            Clockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,current_coords[2],dest_coords[2])
+            Clockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,float(current_coords["theta"]),float(dest_coords["theta"]))
         if flipbit == "1":
             flip(servo)
 
