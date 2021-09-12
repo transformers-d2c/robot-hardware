@@ -1,11 +1,11 @@
 {
     "leftwheel":{
-        "pos":0,
+        "pos":5,
         "neg":0
     },
     "rightwheel":{
-        "pos":0,
-        "neg":0
+        "pos":2,
+        "neg":4
     },
-    "servo":0
+    "servo":14
 }
