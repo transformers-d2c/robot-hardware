@@ -1,16 +1,16 @@
-"""hopefully parts of code will work, mere pe nodeMCU nahi so i didnt test D:"""
 import network
 import socket
 from machine import Pin,PWM
 import json
 
 # global variables
-errorsum_linear = 0
-errordiff_linear = 0
-errorsum_rotate = 0
-errordiff_rotate = 0
+errorsum_linear = 0.0
+errordiff_linear = 0.0
+errorsum_rotate = 0.0
+errordiff_rotate = 0.0
+linear_error = 0.0
+rotate_error = 0.0
 
-# to be put in something similar to void setup no idea where it belongs to
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
@@ -22,6 +22,14 @@ def WiFi_Connect():
         pass
     print('Connected: ',sta_if.ifconfig())
 
+def tolerance(param1,param2,error):
+    """Used to make a tolerance of ambiguous errors"""
+    res = param1-param2
+    neverror = 0-error
+    if(res <= error and res >= neverror):
+        return 0.0
+    else:
+        return res
 
 def PIDcontrollinear(current_coord,dest_coord,motorpin):
     """This function takes coordinates x,y and a motor pin and then applies PID control algo to it"""
@@ -29,10 +37,10 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     y_current_coord = float(current_coord[1]) # takes current y coord
     x_dest_coord = float(dest_coord[0]) # takes dest x coord
     y_dest_coord = float(dest_coord[1]) # takes dest y coord
-    error_x = x_dest_coord - x_current_coord # calculates if error in x direction
-    error_y = y_dest_coord - y_current_coord # calculates if error in y direction
+    error_x = tolerance(x_dest_coord,x_current_coord,linear_error) # calculates if error in x direction
+    error_y = tolerance(y_dest_coord,y_current_coord,linear_error) # calculates if error in y direction
     # if there is no error in x direction then the final error is error_y, else its error_x
-    if error_x == 0:
+    if error_x == 0.0:
         error = error_y
     else:
         error = error_x
@@ -53,7 +61,7 @@ def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     """This function takes coordinates theta and a motor pin and then applies PID control algo to it"""
     current_coord = float(current_coord_dict)
     dest_coord = float(dest_coord_dict)
-    error = dest_coord - current_coord
+    error = tolerance(dest_coord,current_coord,rotate_error)
     global errorsum_rotate
     global errordiff_rotate
     errorsum_rotate += error # build errorsum
@@ -66,39 +74,38 @@ def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
 
 def parse_direction(data):
     """This function gets data from socket and then returns if one should move fw, rv, clockwise or anti clockwise"""
-    anglediff = float(data["target"]["theta"]) - float(data["pose"]["theta"]) # calculate difference of angle of dst and src
+    anglediff = tolerance(float(data["target"]["theta"]),float(data["pose"]["theta"]),rotate_error) # calculate difference of angle of dst and src
     if anglediff == 0:
         # only for forward and reverse
-        if data["pose"]["theta"] == 0.0:
+        if tolerance(data["pose"]["theta"],0.0,rotate_error) == 0:
             # if pointing towards +ve x axis
-            xdiff = float(data["target"]["x"]) - float(data["pose"]["x"]) # dst - src (required difference is +ve)
+            xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is +ve)
             if xdiff > 0.0:
                 return "fw"
             elif xdiff < 0.0:
                 return "rv"
             else:
-                return "stop"
-        elif data["pose"]["theta"] == 180.0 or data["pose"]["theta"] == -180.0:
+        elif tolerance(data["pose"]["theta"],180.0,rotate_error) == 0 or tolerance(data["pose"]["theta"],-180.0,rotate_error) == 0:
             # if pointing towards -ve x axis
-            xdiff = float(data["target"]["x"]) - float(data["pose"]["x"]) # dst - src (required difference is -ve)
+            xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is -ve)
             if xdiff < 0:
                 return "fw"
             elif xdiff > 0:
                 return "rv"
             else:
                 return "stop"
-        elif data["pose"]["theta"] == 90.0:
+        elif tolerance(data["pose"]["theta"],90.0,rotate_error) == 0:
             # if pointing towards +ve y axis
-            ydiff = float(data["target"]["y"]) - float(data["pose"]["y"]) # dst - src (required difference is +ve)
+            ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is +ve)
             if ydiff > 0.0:
                 return "fw"
             elif ydiff < 0.0:
                 return "rv"
             else:
                 return "stop"
-        elif data["pose"]["theta"] == -90.0:
+        elif tolerance(data["pose"]["theta"],-90.0,rotate_error) == 0:
             # if pointing towards -ve y axis
-            ydiff = float(data["target"]["y"]) - float(data["pose"]["y"]) # dst - src (required difference is -ve)
+            ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is -ve)
             if ydiff < 0.0:
                 return "fw"
             elif ydiff > 0.0:
