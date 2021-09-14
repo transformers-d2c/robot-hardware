@@ -1,4 +1,3 @@
-"""hopefully parts of code will work, mere pe nodeMCU nahi so i didnt test D:"""
 import network
 import socket
 from machine import Pin,PWM
@@ -12,7 +11,6 @@ errordiff_rotate = 0.0
 linear_error = 0.0
 rotate_error = 0.0
 
-# to be put in something similar to void setup no idea where it belongs to
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
