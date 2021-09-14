@@ -8,8 +8,8 @@ errorsum_linear = 0.0
 errordiff_linear = 0.0
 errorsum_rotate = 0.0
 errordiff_rotate = 0.0
-linear_error = 0.0
-rotate_error = 0.0
+linear_error = 15.0
+rotate_error = 5
 
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
@@ -50,8 +50,8 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     global errordiff_linear
     errorsum_linear += error # build errorsum
     errordiff_linear = error - errordiff_linear # builds errordif
-    Kp = 50 # subject to change in the tuning phase
-    Ki = 0.2 # subject to change in the tuning phase
+    Kp = 10 # subject to change in the tuning phase
+    Ki = 0.0 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
     pwm = Kp*error + Ki*errorsum_linear + Kd*errordiff_linear # calcs pwn output
     motorpin.duty(int(pwm))
@@ -66,8 +66,8 @@ def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     global errordiff_rotate
     errorsum_rotate += error # build errorsum
     errordiff_rotate = error - errordiff_rotate # builds errordif
-    Kp = 50 # subject to change in the tuning phase
-    Ki = 0.2 # subject to change in the tuning phase
+    Kp = 10 # subject to change in the tuning phase
+    Ki = 0.0 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
     pwm = Kp*error + Ki*errorsum_rotate + Kd*errordiff_rotate # calcs pwn output
     motorpin.duty(int(pwm))
@@ -75,19 +75,23 @@ def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
 def parse_direction(data):
     """This function gets data from socket and then returns if one should move fw, rv, clockwise or anti clockwise"""
     anglediff = tolerance(float(data["target"]["theta"]),float(data["pose"]["theta"]),rotate_error) # calculate difference of angle of dst and src
+    print('angeldiff = '+str(anglediff))
     if anglediff == 0:
         # only for forward and reverse
         if tolerance(data["pose"]["theta"],0.0,rotate_error) == 0:
             # if pointing towards +ve x axis
             xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is +ve)
+            print('xdiff = '+str(xdiff))
             if xdiff > 0.0:
                 return "fw"
             elif xdiff < 0.0:
                 return "rv"
             else:
+                return "stop"
         elif tolerance(data["pose"]["theta"],180.0,rotate_error) == 0 or tolerance(data["pose"]["theta"],-180.0,rotate_error) == 0:
             # if pointing towards -ve x axis
             xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is -ve)
+            print('xdiff = '+str(xdiff))
             if xdiff < 0:
                 return "fw"
             elif xdiff > 0:
@@ -97,6 +101,7 @@ def parse_direction(data):
         elif tolerance(data["pose"]["theta"],90.0,rotate_error) == 0:
             # if pointing towards +ve y axis
             ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is +ve)
+            print('ydiff = '+str(ydiff))
             if ydiff > 0.0:
                 return "fw"
             elif ydiff < 0.0:
@@ -106,6 +111,7 @@ def parse_direction(data):
         elif tolerance(data["pose"]["theta"],-90.0,rotate_error) == 0:
             # if pointing towards -ve y axis
             ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is -ve)
+            print('ydiff = '+str(ydiff))
             if ydiff < 0.0:
                 return "fw"
             elif ydiff > 0.0:
@@ -218,6 +224,7 @@ def main():
         current_coords = pose["pose"]
         dest_coords = pose["target"]
         direction = parse_direction(pose)
+        print(direction)
         flipbit = pose["flip"]
         if direction == "fw":
             forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, [float(current_coords["x"]),float(current_coords["y"])], [float(dest_coords["x"]),float(dest_coords["y"])])
