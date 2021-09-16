@@ -14,8 +14,8 @@ rotate_error = 5
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    ssid = input('Enter SSID:')
-    pwd = input('Enter password:')
+    ssid = 'grid'
+    pwd = 'qwertyuiop'
     sta_if.connect(ssid,pwd)
     print('Connecting...')
     while not sta_if.isconnected():
@@ -50,12 +50,12 @@ def PIDcontrollinear(current_coord,dest_coord,motorpin):
     global errordiff_linear
     errorsum_linear += error # build errorsum
     errordiff_linear = error - errordiff_linear # builds errordif
-    Kp = 10 # subject to change in the tuning phase
+    Kp = 5 # subject to change in the tuning phase
     Ki = 0.0 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
     pwm = Kp*error + Ki*errorsum_linear + Kd*errordiff_linear # calcs pwn output
-    motorpin.duty(int(pwm))
-
+    # print(abs(pwm))
+    motorpin.duty(int(abs(pwm)))
 
 def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     """This function takes coordinates theta and a motor pin and then applies PID control algo to it"""
@@ -66,22 +66,23 @@ def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
     global errordiff_rotate
     errorsum_rotate += error # build errorsum
     errordiff_rotate = error - errordiff_rotate # builds errordif
-    Kp = 10 # subject to change in the tuning phase
-    Ki = 0.0 # subject to change in the tuning phase
+    Kp = 6 # subject to change in the tuning phase
+    Ki = 0.02 # subject to change in the tuning phase
     Kd = 0 # subject to change in the tuning phase
     pwm = Kp*error + Ki*errorsum_rotate + Kd*errordiff_rotate # calcs pwn output
-    motorpin.duty(int(pwm))
+    print(abs(pwm))
+    motorpin.duty(int(abs(pwm)))
 
 def parse_direction(data):
     """This function gets data from socket and then returns if one should move fw, rv, clockwise or anti clockwise"""
     anglediff = tolerance(float(data["target"]["theta"]),float(data["pose"]["theta"]),rotate_error) # calculate difference of angle of dst and src
-    print('angeldiff = '+str(anglediff))
+    # print('angeldiff = '+str(anglediff))
     if anglediff == 0:
         # only for forward and reverse
         if tolerance(data["pose"]["theta"],0.0,rotate_error) == 0:
             # if pointing towards +ve x axis
             xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is +ve)
-            print('xdiff = '+str(xdiff))
+            # print('xdiff = '+str(xdiff))
             if xdiff > 0.0:
                 return "fw"
             elif xdiff < 0.0:
@@ -91,7 +92,7 @@ def parse_direction(data):
         elif tolerance(data["pose"]["theta"],180.0,rotate_error) == 0 or tolerance(data["pose"]["theta"],-180.0,rotate_error) == 0:
             # if pointing towards -ve x axis
             xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is -ve)
-            print('xdiff = '+str(xdiff))
+            # print('xdiff = '+str(xdiff))
             if xdiff < 0:
                 return "fw"
             elif xdiff > 0:
@@ -101,7 +102,7 @@ def parse_direction(data):
         elif tolerance(data["pose"]["theta"],90.0,rotate_error) == 0:
             # if pointing towards +ve y axis
             ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is +ve)
-            print('ydiff = '+str(ydiff))
+            # print('ydiff = '+str(ydiff))
             if ydiff > 0.0:
                 return "fw"
             elif ydiff < 0.0:
@@ -111,7 +112,7 @@ def parse_direction(data):
         elif tolerance(data["pose"]["theta"],-90.0,rotate_error) == 0:
             # if pointing towards -ve y axis
             ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is -ve)
-            print('ydiff = '+str(ydiff))
+            # print('ydiff = '+str(ydiff))
             if ydiff < 0.0:
                 return "fw"
             elif ydiff > 0.0:
@@ -186,11 +187,11 @@ def stop(m1p1,m1p2,m2p1,m2p2):
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    IP = input('Enter server IP:')
-    port = int(input('Enter serve port'))
+    IP = '10.42.0.1'
+    port = 5001
     s.connect((IP,port))
     print('Connected to server')
-    robot_id = int(input('Robot id?'))
+    robot_id = 1
     s.sendall(str(robot_id).encode('ascii'))
     with open("pinConfig.json","r") as f:
         pins = json.loads(f.read())
@@ -214,18 +215,27 @@ def main():
         if delimiter_index == -1:
             continue
         else:
-            pose = json.loads(data[0:delimiter_index])
-            data = data[delimiter_index+1:]
-        print(str(pose))
+            try:
+                pose = json.loads(data[0:delimiter_index])
+                data1 = data
+                data = data[delimiter_index+1:]
+                print(str(pose))
+            except:
+                data1 = data
+                data = data[delimiter_index+1:]
+                continue
         #i+=1
         #if(i%100==0):
             #print(str(pose))
             #i=1
-        current_coords = pose["pose"]
-        dest_coords = pose["target"]
-        direction = parse_direction(pose)
-        print(direction)
-        flipbit = pose["flip"]
+        try:
+            current_coords = pose["pose"]
+            dest_coords = pose["target"]
+            direction = parse_direction(pose)
+            print(direction)
+            flipbit = pose["flip"]
+        except:
+            continue
         if direction == "fw":
             forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, [float(current_coords["x"]),float(current_coords["y"])], [float(dest_coords["x"]),float(dest_coords["y"])])
         if direction == "rv":
