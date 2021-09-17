@@ -10,8 +10,8 @@ errorsum_linear = 0.0
 errordiff_linear = 0.0
 errorsum_rotate = 0.0
 errordiff_rotate = 0.0
-linear_error = 15.0
-rotate_error = 5
+linear_error = 5.0
+rotate_error = 15.0
 motor1pin1_raw = None
 motor1pin1 = None
 motor1pin2_raw = None
@@ -88,14 +88,15 @@ def move_linear(pid):
 
 def PIDLinear(distance,angle_diff):
     K_p = 5
-    K_i = 0.0
+    K_i = 0.1
     K_d = 0.0
     global errorsum_linear
     global errordiff_linear
+    global rotate_error
     errorsum_linear += distance
     errordiff_linear = distance - errordiff_linear
     pid = K_p*distance + K_i*errorsum_linear + K_d*errordiff_linear
-    if equality(angle_diff,180) or equality(angle_diff,-180):
+    if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
         pid = 0-pid
     move_linear(pid)
     errordiff_linear = distance
@@ -103,7 +104,7 @@ def PIDLinear(distance,angle_diff):
 
 def PIDRotate(angle_diff):
     K_p = 5
-    K_i = 0.0
+    K_i = 0.06
     K_d = 0.0
     if angle_diff>=180:
         angle_diff = angle_diff - 360
@@ -152,6 +153,8 @@ def main():
     global motor2pin1
     global motor2pin2_raw
     global motor2pin2
+    global rotate_error
+    global linear_error
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     IP = '10.42.0.1'
     port = 5001
@@ -194,20 +197,23 @@ def main():
         #if(i%100==0):
             #print(str(pose))
             #i=1
-        try:
-            current_angle = pose['pose']['theta']
-            target_angle = pose['target']['theta']
-            angle_diff = target_angle-current_angle
-            if (not equality(angle_diff,0)) and ((not equality(angle_diff,180)) or (not equality(angle_diff,-180))):
-                PIDRotate(angle_diff)
-            else:
-                PIDLinear(euler_distance(pose['pose']['x'],pose['pose']['y'],pose['target']['x'],pose['target']['y']),angle_diff)
-            if pose['flip']:
-                servo.duty(0)
-            else:
-                servo.duty(0)
-        except:
+        current_angle = pose['pose']['theta']
+        target_angle = math.atan2(pose['target']['y']-pose['pose']['y'],pose['target']['x']-pose['pose']['x'])*180/math.pi
+        angle_diff = target_angle-current_angle
+        print(target_angle)
+        print(angle_diff)
+        if equality(euler_distance(pose['pose']['x'],pose['pose']['y'],pose['target']['x'],pose['target']['y']),0.0,linear_error):
+            print('hello')
+            stop(motor1pin1,motor1pin2,motor2pin2,motor2pin1)
             continue
+        if (not equality(angle_diff,0,rotate_error)) and ((not equality(angle_diff,180,rotate_error)) or (not equality(angle_diff,-180,rotate_error))):
+            PIDRotate(angle_diff)
+        else:
+            PIDLinear(euler_distance(pose['pose']['x'],pose['pose']['y'],pose['target']['x'],pose['target']['y']),angle_diff)
+        if pose['flip']:
+            servo.duty(0)
+        else:
+            servo.duty(0)
 
 if __name__ == "__main__":
     WiFi_Connect()
