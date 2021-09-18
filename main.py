@@ -11,7 +11,7 @@ errordiff_linear = 0.0
 errorsum_rotate = 0.0
 errordiff_rotate = 0.0
 linear_error = 5.0
-rotate_error = 15.0
+rotate_error = 5.0
 motor1pin1_raw = None
 motor1pin1 = None
 motor1pin2_raw = None
@@ -56,6 +56,10 @@ def move_rotate(pid):
     global motor2pin1
     global motor2pin2
     pid = int(pid)
+    if pid>525:
+        pid = 525
+    if pid<-525:
+        pid = -525
     if pid<0:
         pid = 0-pid
         motor1pin1.duty(pid)
@@ -87,12 +91,14 @@ def move_linear(pid):
         motor2pin2.duty(pid)
 
 def PIDLinear(distance,angle_diff):
-    K_p = 5
+    K_p = 8
     K_i = 0.1
     K_d = 0.0
     global errorsum_linear
     global errordiff_linear
     global rotate_error
+    if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
+        distance = 0-distance
     errorsum_linear += distance
     errordiff_linear = distance - errordiff_linear
     pid = K_p*distance + K_i*errorsum_linear + K_d*errordiff_linear
@@ -103,19 +109,24 @@ def PIDLinear(distance,angle_diff):
 
 
 def PIDRotate(angle_diff):
-    K_p = 5
-    K_i = 0.06
-    K_d = 0.0
-    if angle_diff>=180:
-        angle_diff = angle_diff - 360
-    elif angle_diff<-180:
-        angle_diff = angle_diff + 360
-    global errorsum_rotate
-    global errordiff_rotate
-    errorsum_rotate += angle_diff
-    errordiff_rotate = angle_diff - errordiff_rotate
-    pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
-    errordiff_rotate = angle_diff
+    # K_p = 7
+    # K_i = 0.0
+    # K_d = 0.0
+    # if angle_diff>=180:
+    #     angle_diff = angle_diff - 360
+    # elif angle_diff<-180:
+    #     angle_diff = angle_diff + 360
+    # global errorsum_rotate
+    # global errordiff_rotate
+    # errorsum_rotate += angle_diff
+    # errordiff_rotate = angle_diff - errordiff_rotate
+    # pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
+    # errordiff_rotate = angle_diff
+    pid = 0
+    if angle_diff>0:
+        pid = 512
+    if angle_diff<0:
+        pid = -512
     move_rotate(pid)
 
 
