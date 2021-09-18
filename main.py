@@ -104,6 +104,10 @@ def PIDLinear(distance,angle_diff):
     pid = K_p*distance + K_i*errorsum_linear + K_d*errordiff_linear
     if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
         pid = 0-pid
+    if(pid > 650):
+        pid = 650
+    if(pid < -650):
+        pid = -650
     move_linear(pid)
     errordiff_linear = distance
 
