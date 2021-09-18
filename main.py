@@ -109,41 +109,38 @@ def PIDLinear(distance,angle_diff):
 
 
 def PIDRotate(angle_diff):
-    # K_p = 7
-    # K_i = 0.0
+    # K_p = 8
+    # K_i = 0.1
     # K_d = 0.0
-    # if angle_diff>=180:
-    #     angle_diff = angle_diff - 360
-    # elif angle_diff<-180:
-    #     angle_diff = angle_diff + 360
+    if angle_diff>=180:
+        angle_diff = angle_diff - 360
+    elif angle_diff<-180:
+        angle_diff = angle_diff + 360
     # global errorsum_rotate
     # global errordiff_rotate
     # errorsum_rotate += angle_diff
     # errordiff_rotate = angle_diff - errordiff_rotate
     # pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
     # errordiff_rotate = angle_diff
+    #K_p = 8
+    #K_i = 0.1
+    #K_d = 0.0
+    #if angle_diff <= 180.0 and angle_diff >= -180.0:
+     #   angle_diff = angle_diff + 360
+    #else:
+     #   angle_diff = angle_diff - 360
+     #global errorsum_rotate
+    #global errordiff_rotate
+    #errorsum_rotate += angle_diff
+    #errordiff_rotate = angle_diff - errordiff_rotate
+    #pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
+    #errordiff_rotate = angle_diff
     pid = 0
     if angle_diff>0:
         pid = 512
     if angle_diff<0:
         pid = -512
     move_rotate(pid)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 def stop(m1p1,m1p2,m2p1,m2p2):
     """This function will take in motor pins and apply PID to make it stop"""
