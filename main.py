@@ -2,14 +2,26 @@ import network
 import socket
 from machine import Pin,PWM
 import json
+import math
 
 # global variables
+
 errorsum_linear = 0.0
 errordiff_linear = 0.0
 errorsum_rotate = 0.0
 errordiff_rotate = 0.0
-linear_error = 15.0
-rotate_error = 5
+linear_error = 5.0
+rotate_error = 5.0
+motor1pin1_raw = None
+motor1pin1 = None
+motor1pin2_raw = None
+motor1pin2 = None
+motor2pin1_raw = None
+motor2pin1 = None
+motor2pin2_raw = None
+motor2pin2 = None
+target_angle = 0.0
+current_angle = 0.0
 
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
@@ -31,150 +43,106 @@ def tolerance(param1,param2,error):
     else:
         return res
 
-def PIDcontrollinear(current_coord,dest_coord,motorpin):
-    """This function takes coordinates x,y and a motor pin and then applies PID control algo to it"""
-    x_current_coord = float(current_coord[0]) # takes current x coord
-    y_current_coord = float(current_coord[1]) # takes current y coord
-    x_dest_coord = float(dest_coord[0]) # takes dest x coord
-    y_dest_coord = float(dest_coord[1]) # takes dest y coord
-    error_x = tolerance(x_dest_coord,x_current_coord,linear_error) # calculates if error in x direction
-    error_y = tolerance(y_dest_coord,y_current_coord,linear_error) # calculates if error in y direction
-    # if there is no error in x direction then the final error is error_y, else its error_x
-    if error_x == 0.0:
-        error = error_y
+def equality(param1,param2,error):
+    """Used to make a tolerance of ambiguous errors"""
+    return abs(param1-param2)<=error
+
+def euler_distance(x1,y1,x2,y2):
+    return ((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1))**0.5
+
+def move_rotate(pid):
+    global motor1pin1
+    global motor1pin2 
+    global motor2pin1
+    global motor2pin2
+    pid = int(pid)
+    if pid>525:
+        pid = 525
+    if pid<-525:
+        pid = -525
+    if pid<0:
+        pid = 0-pid
+        motor1pin1.duty(pid)
+        motor1pin2.duty(0)
+        motor2pin1.duty(0)
+        motor2pin2.duty(pid)  
     else:
-        error = error_x
-    # probably the remaning code shouldnt matter on the direction, since PID in itself is applied on 1 dimension
-    # but the errorsum and errordiff might need seperate variables for x and y coordinates.
+        motor1pin1.duty(0)
+        motor1pin2.duty(pid)
+        motor2pin1.duty(pid)
+        motor2pin2.duty(0)
+        
+def move_linear(pid):
+    global motor1pin1
+    global motor1pin2 
+    global motor2pin1
+    global motor2pin2
+    pid = int(pid)
+    if pid>=0:
+        motor1pin1.duty(pid)
+        motor1pin2.duty(0)
+        motor2pin1.duty(pid)
+        motor2pin2.duty(0)    
+    else:
+        pid = 0-pid
+        motor1pin1.duty(0)
+        motor1pin2.duty(pid)
+        motor2pin1.duty(0)
+        motor2pin2.duty(pid)
+
+def PIDLinear(distance,angle_diff):
+    K_p = 8
+    K_i = 0.1
+    K_d = 0.0
     global errorsum_linear
     global errordiff_linear
-    errorsum_linear += error # build errorsum
-    errordiff_linear = error - errordiff_linear # builds errordif
-    Kp = 5 # subject to change in the tuning phase
-    Ki = 0.0 # subject to change in the tuning phase
-    Kd = 0 # subject to change in the tuning phase
-    pwm = Kp*error + Ki*errorsum_linear + Kd*errordiff_linear # calcs pwn output
-    # print(abs(pwm))
-    motorpin.duty(int(abs(pwm)))
-
-def PIDcontrolrotate(current_coord_dict,dest_coord_dict,motorpin):
-    """This function takes coordinates theta and a motor pin and then applies PID control algo to it"""
-    current_coord = float(current_coord_dict)
-    dest_coord = float(dest_coord_dict)
-    error = tolerance(dest_coord,current_coord,rotate_error)
-    global errorsum_rotate
-    global errordiff_rotate
-    errorsum_rotate += error # build errorsum
-    errordiff_rotate = error - errordiff_rotate # builds errordif
-    Kp = 6 # subject to change in the tuning phase
-    Ki = 0.02 # subject to change in the tuning phase
-    Kd = 0 # subject to change in the tuning phase
-    pwm = Kp*error + Ki*errorsum_rotate + Kd*errordiff_rotate # calcs pwn output
-    print(abs(pwm))
-    motorpin.duty(int(abs(pwm)))
-
-def parse_direction(data):
-    """This function gets data from socket and then returns if one should move fw, rv, clockwise or anti clockwise"""
-    anglediff = tolerance(float(data["target"]["theta"]),float(data["pose"]["theta"]),rotate_error) # calculate difference of angle of dst and src
-    # print('angeldiff = '+str(anglediff))
-    if anglediff == 0:
-        # only for forward and reverse
-        if tolerance(data["pose"]["theta"],0.0,rotate_error) == 0:
-            # if pointing towards +ve x axis
-            xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is +ve)
-            # print('xdiff = '+str(xdiff))
-            if xdiff > 0.0:
-                return "fw"
-            elif xdiff < 0.0:
-                return "rv"
-            else:
-                return "stop"
-        elif tolerance(data["pose"]["theta"],180.0,rotate_error) == 0 or tolerance(data["pose"]["theta"],-180.0,rotate_error) == 0:
-            # if pointing towards -ve x axis
-            xdiff = tolerance(float(data["target"]["x"]),float(data["pose"]["x"]),linear_error) # dst - src (required difference is -ve)
-            # print('xdiff = '+str(xdiff))
-            if xdiff < 0:
-                return "fw"
-            elif xdiff > 0:
-                return "rv"
-            else:
-                return "stop"
-        elif tolerance(data["pose"]["theta"],90.0,rotate_error) == 0:
-            # if pointing towards +ve y axis
-            ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is +ve)
-            # print('ydiff = '+str(ydiff))
-            if ydiff > 0.0:
-                return "fw"
-            elif ydiff < 0.0:
-                return "rv"
-            else:
-                return "stop"
-        elif tolerance(data["pose"]["theta"],-90.0,rotate_error) == 0:
-            # if pointing towards -ve y axis
-            ydiff = tolerance(float(data["target"]["y"]),float(data["pose"]["y"]),linear_error) # dst - src (required difference is -ve)
-            # print('ydiff = '+str(ydiff))
-            if ydiff < 0.0:
-                return "fw"
-            elif ydiff > 0.0:
-                return "rv"
-            else:
-                return "stop"
-    else:
-        # for left and right (might not work, i dont have much confidence in this piece of code, cuz no testing D:)
-        if anglediff < 180.0:
-            # if angle difference < 180 then if dest angle > current the it will turn left and dest angle < current the it will turn right
-            if data["target"]["theta"] > data["pose"]["theta"]:
-                return "antiClock"
-            elif data["target"]["theta"] < data["pose"]["theta"]:
-                return "Clock"
-        elif anglediff > 180.0:
-            # if angle difference > 180 then if dest angle < current the it will turn left and dest angle > current the it will turn right
-            if data["target"]["theta"] < data["pose"]["theta"]:
-                return "antiClock"
-            elif data["target"]["theta"] > data["pose"]["theta"]:
-                return "Clock"
+    global rotate_error
+    if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
+        distance = 0-distance
+    errorsum_linear += distance
+    errordiff_linear = distance - errordiff_linear
+    pid = K_p*distance + K_i*errorsum_linear + K_d*errordiff_linear
+    if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
+        pid = 0-pid
+    move_linear(pid)
+    errordiff_linear = distance
 
 
-def flip(sm):
-    """This function will be used to flip the load off the robot"""
-    sm.duty(100) # subject to change depending on the angle
-    sm.duty(40) # subject to change depending on the angle
+def PIDRotate(angle_diff):
+    # K_p = 7
+    # K_i = 0.0
+    # K_d = 0.0
+    # if angle_diff>=180:
+    #     angle_diff = angle_diff - 360
+    # elif angle_diff<-180:
+    #     angle_diff = angle_diff + 360
+    # global errorsum_rotate
+    # global errordiff_rotate
+    # errorsum_rotate += angle_diff
+    # errordiff_rotate = angle_diff - errordiff_rotate
+    # pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
+    # errordiff_rotate = angle_diff
+    pid = 0
+    if angle_diff>0:
+        pid = 512
+    if angle_diff<0:
+        pid = -512
+    move_rotate(pid)
 
 
-def forward(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
-    """This function will take in motor pins as well as coordinates of current as will as
-    destination and apply PID to make it move fw"""
-    PIDcontrollinear(current_coord,dest_coord,m1p1)
-    m1p2.duty(0)
-    PIDcontrollinear(current_coord,dest_coord,m2p1)
-    m2p2.duty(0)
 
 
-def reverse(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
-    """This function will take in motor pins as well as coordinates of current as will as
-        destination and apply PID to make it move rv"""
-    m1p1.duty(0)
-    PIDcontrollinear(current_coord,dest_coord,m1p2)
-    m2p1.duty(0)
-    PIDcontrollinear(current_coord,dest_coord,m2p2)
 
 
-def antiClockwise(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
-    """This function will take in motor pins as well as coordinates of current as will as
-        destination and apply PID to make it move anti-clockwise"""
-    m1p1.duty(0)
-    PIDcontrolrotate(current_coord, dest_coord, m1p2)
-    PIDcontrolrotate(current_coord, dest_coord, m2p1)
-    m2p2.duty(0)
 
 
-def Clockwise(m1p1,m1p2,m2p1,m2p2,current_coord,dest_coord):
-    """This function will take in motor pins as well as coordinates of current as will as
-        destination and apply PID to make it move clockwise"""
-    PIDcontrolrotate(current_coord,dest_coord,m1p1)
-    m1p2.duty(0)
-    m2p1.duty(0)
-    PIDcontrolrotate(current_coord,dest_coord,m2p2)
+
+
+
+
+
+
+
 
 
 def stop(m1p1,m1p2,m2p1,m2p2):
@@ -186,6 +154,18 @@ def stop(m1p1,m1p2,m2p1,m2p2):
 
 
 def main():
+    global target_angle
+    global current_angle
+    global motor1pin1_raw
+    global motor1pin1
+    global motor1pin2_raw
+    global motor1pin2
+    global motor2pin1_raw 
+    global motor2pin1
+    global motor2pin2_raw
+    global motor2pin2
+    global rotate_error
+    global linear_error
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     IP = '10.42.0.1'
     port = 5001
@@ -228,26 +208,23 @@ def main():
         #if(i%100==0):
             #print(str(pose))
             #i=1
-        try:
-            current_coords = pose["pose"]
-            dest_coords = pose["target"]
-            direction = parse_direction(pose)
-            print(direction)
-            flipbit = pose["flip"]
-        except:
+        current_angle = pose['pose']['theta']
+        target_angle = math.atan2(pose['target']['y']-pose['pose']['y'],pose['target']['x']-pose['pose']['x'])*180/math.pi
+        angle_diff = target_angle-current_angle
+        print(target_angle)
+        print(angle_diff)
+        if equality(euler_distance(pose['pose']['x'],pose['pose']['y'],pose['target']['x'],pose['target']['y']),0.0,linear_error):
+            print('hello')
+            stop(motor1pin1,motor1pin2,motor2pin2,motor2pin1)
             continue
-        if direction == "fw":
-            forward(motor1pin1, motor1pin2, motor2pin1, motor2pin2, [float(current_coords["x"]),float(current_coords["y"])], [float(dest_coords["x"]),float(dest_coords["y"])])
-        if direction == "rv":
-            reverse(motor1pin1, motor1pin2, motor2pin1, motor2pin2, [float(current_coords["x"]),float(current_coords["y"])], [float(dest_coords["x"]),float(dest_coords["y"])])
-        if direction == "stop":
-            stop(motor1pin1, motor1pin2, motor2pin1, motor2pin2)
-        if direction == "antiClock":
-            antiClockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,float(current_coords["theta"]),float(dest_coords["theta"]))
-        if direction == "Clock":
-            Clockwise(motor1pin1,motor1pin2,motor2pin1,motor2pin2,float(current_coords["theta"]),float(dest_coords["theta"]))
-        if flipbit == "1":
-            flip(servo)
+        if (not equality(angle_diff,0,rotate_error)) and ((not equality(angle_diff,180,rotate_error)) or (not equality(angle_diff,-180,rotate_error))):
+            PIDRotate(angle_diff)
+        else:
+            PIDLinear(euler_distance(pose['pose']['x'],pose['pose']['y'],pose['target']['x'],pose['target']['y']),angle_diff)
+        if pose['flip']:
+            servo.duty(0)
+        else:
+            servo.duty(0)
 
 if __name__ == "__main__":
     WiFi_Connect()
