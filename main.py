@@ -10,7 +10,7 @@ errorsum_linear = 0.0
 errordiff_linear = 0.0
 errorsum_rotate = 0.0
 errordiff_rotate = 0.0
-linear_error = 5.0
+linear_error = 15.0
 rotate_error = 10.0
 motor1pin1_raw = None
 motor1pin1 = None
@@ -81,18 +81,18 @@ def move_linear(pid):
     if pid>=0:
         motor1pin1.duty(pid)
         motor1pin2.duty(0)
-        motor2pin1.duty(pid)
+        motor2pin1.duty(int(pid))
         motor2pin2.duty(0)    
     else:
         pid = 0-pid
         motor1pin1.duty(0)
         motor1pin2.duty(pid)
         motor2pin1.duty(0)
-        motor2pin2.duty(pid)
+        motor2pin2.duty(int(pid))
 
 def PIDLinear(distance,angle_diff):
-    K_p = 18
-    K_i = 0.0
+    K_p = 20
+    K_i = 0.05
     K_d = 0.0
     global errorsum_linear
     global errordiff_linear
@@ -111,24 +111,28 @@ def PIDLinear(distance,angle_diff):
 
 
 def PIDRotate(angle_diff):
-    K_p = 3.2
-    K_i = 0.08
-    K_d = 1.0
+    # K_p = 3.2
+    # K_i = 0.07
+    # K_d = 1.0
     if angle_diff>180:
         angle_diff = angle_diff - 360
     elif angle_diff<-180:
         angle_diff = angle_diff + 360
-    global errorsum_rotate
-    global errordiff_rotate
-    errorsum_rotate += angle_diff
-    errordiff_rotate = angle_diff - errordiff_rotate
-    pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
-    errordiff_rotate = angle_diff
-    # pid = 0
-    # if angle_diff>0:
-    #     pid = 200
-    # if angle_diff<0:
-    #     pid = -200
+    # global errorsum_rotate
+    # global errordiff_rotate
+    # errorsum_rotate += angle_diff
+    # if errorsum_rotate>6000:
+    #     errorsum_rotate = 6000
+    # if errorsum_rotate<-6000:
+    #     errorsum_rotate = -6000
+    # errordiff_rotate = angle_diff - errordiff_rotate
+    # pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
+    # errordiff_rotate = angle_diff
+    pid = 0
+    if angle_diff>0:
+        pid = 400
+    if angle_diff<0:
+        pid = -300
     move_rotate(pid)
 
 def stop(m1p1,m1p2,m2p1,m2p2):
@@ -157,7 +161,7 @@ def main():
     port = 5001
     s.connect((IP,port))
     print('Connected to server')
-    robot_id = 1
+    robot_id = 2
     s.sendall(str(robot_id).encode('ascii'))
     with open("pinConfig.json","r") as f:
         pins = json.loads(f.read())
