@@ -1,7 +1,7 @@
 {
     "leftwheel":{
-        "pos":4,
-        "neg":5
+        "pos":5,
+        "neg":4
     },
     "rightwheel":{
         "pos":0,

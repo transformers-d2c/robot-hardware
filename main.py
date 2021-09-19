@@ -26,8 +26,8 @@ current_angle = 0.0
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    ssid = 'grid'
-    pwd = 'qwertyuiop'
+    ssid = 'dlink'
+    pwd = '12345678'
     sta_if.connect(ssid,pwd)
     print('Connecting...')
     while not sta_if.isconnected():
@@ -91,8 +91,8 @@ def move_linear(pid):
         motor2pin2.duty(pid)
 
 def PIDLinear(distance,angle_diff):
-    K_p = 8
-    K_i = 0.1
+    K_p = 18
+    K_i = 0.0
     K_d = 0.0
     global errorsum_linear
     global errordiff_linear
@@ -104,46 +104,33 @@ def PIDLinear(distance,angle_diff):
     pid = K_p*distance + K_i*errorsum_linear + K_d*errordiff_linear
     if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
         pid = 0-pid
-    if(pid > 650):
-        pid = 650
-    if(pid < -650):
-        pid = -650
+    if(pid > 800):
+        pid = 800
+    if(pid < -800):
+        pid = -800
     move_linear(pid)
     errordiff_linear = distance
 
 
 def PIDRotate(angle_diff):
-    # K_p = 8
-    # K_i = 0.1
-    # K_d = 0.0
-    if angle_diff>=180:
+    K_p = 3.2
+    K_i = 0.08
+    K_d = 1.0
+    if angle_diff>180:
         angle_diff = angle_diff - 360
     elif angle_diff<-180:
         angle_diff = angle_diff + 360
-    # global errorsum_rotate
-    # global errordiff_rotate
-    # errorsum_rotate += angle_diff
-    # errordiff_rotate = angle_diff - errordiff_rotate
-    # pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
-    # errordiff_rotate = angle_diff
-    #K_p = 8
-    #K_i = 0.1
-    #K_d = 0.0
-    #if angle_diff <= 180.0 and angle_diff >= -180.0:
-     #   angle_diff = angle_diff + 360
-    #else:
-     #   angle_diff = angle_diff - 360
-     #global errorsum_rotate
-    #global errordiff_rotate
-    #errorsum_rotate += angle_diff
-    #errordiff_rotate = angle_diff - errordiff_rotate
-    #pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
-    #errordiff_rotate = angle_diff
-    pid = 0
-    if angle_diff>0:
-        pid = 512
-    if angle_diff<0:
-        pid = -512
+    global errorsum_rotate
+    global errordiff_rotate
+    errorsum_rotate += angle_diff
+    errordiff_rotate = angle_diff - errordiff_rotate
+    pid = K_p*angle_diff + K_i*errorsum_rotate + K_d*errordiff_rotate
+    errordiff_rotate = angle_diff
+    # pid = 0
+    # if angle_diff>0:
+    #     pid = 200
+    # if angle_diff<0:
+    #     pid = -200
     move_rotate(pid)
 
 def stop(m1p1,m1p2,m2p1,m2p2):
@@ -168,7 +155,7 @@ def main():
     global rotate_error
     global linear_error
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    IP = '10.42.0.1'
+    IP = '192.168.0.102'
     port = 5001
     s.connect((IP,port))
     print('Connected to server')
