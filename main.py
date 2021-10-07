@@ -81,14 +81,14 @@ def move_linear(pid):
     if pid>=0:
         motor1pin1.duty(pid)
         motor1pin2.duty(0)
-        motor2pin1.duty(pid)
+        motor2pin1.duty(int(pid))
         motor2pin2.duty(0)    
     else:
         pid = 0-pid
         motor1pin1.duty(0)
         motor1pin2.duty(pid)
         motor2pin1.duty(0)
-        motor2pin2.duty(pid)
+        motor2pin2.duty(int(pid))
 
 def stop():
     """This function will take in motor pins and aupply PID to make it stop"""
@@ -109,7 +109,7 @@ def main():
     port = 5001
     s.connect((IP,port))
     print('Connected to server')
-    robot_id = 1
+    robot_id = 2
     s.sendall(str(robot_id).encode('ascii'))
     with open("pinConfig.json","r") as f:
         pins = json.loads(f.read())
