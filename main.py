@@ -135,13 +135,13 @@ def main():
                 continue
         val = data["direction"]
         flip = data["flip"]
-        if(val == "w"):
+        if(val == "w"): # forward
             w()
-        elif(val == "s"):
+        elif(val == "s"): # backward
             s()
-        elif(val == "a"):
+        elif(val == "a"): # left
             a()
-        elif(val == "d"):
+        elif(val == "d"): # right
             d()
         else:
             stop()
