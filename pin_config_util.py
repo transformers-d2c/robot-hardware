@@ -1,8 +1,8 @@
-import json
+import json as j
 
 def get_pins():
     with open('pinConfig.json','r') as inp:
-        data = json.load(inp)
+        data = j.load(inp)
         print(str(data))
 
 
@@ -19,7 +19,7 @@ def set_pins(lp,ln,rp,rn,s):
             },
             'servo':s
         }
-        json.dump(data,out)
+        j.dump(data,out)
 
 
 def set_pins_input():
