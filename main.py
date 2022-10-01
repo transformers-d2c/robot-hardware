@@ -26,8 +26,8 @@ current_angle = 0.0
 def WiFi_Connect():
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    ssid = 'dlink'
-    pwd = '12345678'
+    ssid = 'ENTER YOUR WIFI NAME HERE'
+    pwd = 'ENTER YOUR WIFI PASSWORD HERE'
     sta_if.connect(ssid,pwd)
     print('Connecting...')
     while not sta_if.isconnected():
