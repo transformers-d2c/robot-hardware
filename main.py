@@ -89,6 +89,27 @@ def move_linear(pid):
         motor1pin2.duty(pid)
         motor2pin1.duty(0)
         motor2pin2.duty(int(pid))
+def PIDNonLinear(distance,angle_diff):
+    K_p = 20
+    K_i = 0.05
+    K_d = 0.0
+    global errorsum_linear
+    global errordiff_linear
+    global rotate_error
+    if equality(angle_diff,180,rotate_error) or equality(angle_diff,-180,rotate_error):
+        distance = 0-distance
+    errorsum_linear += distance
+    errordiff_linear = distance - errordiff_linear
+    pid = K_p*distance + K_i*errorsum_linear + K_d*errordiff_linear
+    if  800<=pid<1e9:
+        pid = 800
+    else:
+        pid = 100
+
+    if(pid < -800):
+        pid = -800
+    move_linear(pid)
+    errordiff_linear = distance
 
 def PIDLinear(distance,angle_diff):
     K_p = 20
